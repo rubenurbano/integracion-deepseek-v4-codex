@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integración de DeepSeek V4 con Codex · Tutorial Interactivo</title>
+<style>
+/* ============ RESET & BASE ============ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a; --card:#0f172a; --border:#1e3a5f;
+  --accent:#00d4ff; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --purple:#a855f7;
+  --txt:#e2e8f0; --muted:#94a3b8; --dim:#64748b;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  line-height:1.65; overflow-x:hidden;
+  background-image:radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,212,255,.06), transparent),
+                   radial-gradient(ellipse 60% 40% at 90% 110%, rgba(168,85,247,.05), transparent);
+}
+::selection{background:rgba(0,212,255,.3)}
+
+/* ============ PROGRESS BAR ============ */
+#progressBar{
+  position:fixed;top:0;left:0;height:4px;width:0%;z-index:200;
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  box-shadow:0 0 12px rgba(0,212,255,.7);
+  transition:width .08s linear;
+}
+
+/* ============ NAVBAR ============ */
+#mainNav{
+  position:fixed;top:4px;left:0;right:0;z-index:150;
+  background:rgba(10,14,26,.93);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+  padding:0 14px;height:58px;
+}
+.nav-brand{
+  display:flex;align-items:center;gap:9px;flex-shrink:0;
+  font-weight:800;font-size:.92rem;letter-spacing:1px;color:var(--txt);
+  padding-right:12px;border-right:1px solid var(--border);
+}
+.nav-brand .dot{
+  width:12px;height:12px;border-radius:3px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  box-shadow:0 0 10px rgba(0,212,255,.8);
+  animation:pulseDot 2.4s ease-in-out infinite;
+}
+@keyframes pulseDot{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+.nav-scroll{
+  display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+  -webkit-overflow-scrolling:touch;flex:1;align-items:center;height:100%;
+}
+.nav-scroll::-webkit-scrollbar{height:4px}
+.nav-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.nav-btn{
+  flex-shrink:0;white-space:nowrap;cursor:pointer;
+  background:transparent;border:1px solid transparent;color:var(--muted);
+  font-family:inherit;font-size:.82rem;font-weight:600;
+  padding:8px 14px;border-radius:8px;
+  transition:all .2s ease;
+}
+.nav-btn:hover{color:var(--txt);background:rgba(0,212,255,.08)}
+.nav-btn.active{
+  color:var(--accent);background:rgba(0,212,255,.1);
+  border-color:rgba(0,212,255,.45);
+  box-shadow:0 0 14px rgba(0,212,255,.15) inset;
+}
+.nav-btn.credits-btn{
+  color:var(--purple);border-color:rgba(168,85,247,.4);
+  background:rgba(168,85,247,.08);margin-left:4px;
+}
+.nav-btn.credits-btn.active{background:rgba(168,85,247,.18);color:#c084fc;border-color:var(--purple)}
+
+/* ============ LAYOUT ============ */
+main{max-width:1180px;margin:0 auto;padding:100px 20px 40px}
+.section{display:none}
+.section.active{display:block;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ============ CARDS ============ */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:24px;margin-bottom:20px;
+  transition:border-color .25s ease;
+}
+.card:hover{border-color:#2b527f}
+.card h3{font-size:1.12rem;margin-bottom:12px;color:var(--txt)}
+.card h4{font-size:.98rem;margin:16px 0 8px;color:var(--accent)}
+.card p{margin-bottom:12px;color:#cbd5e1;font-size:.95rem}
+.card p:last-child{margin-bottom:0}
+.card ul,.card ol{margin:10px 0 14px 22px;color:#cbd5e1;font-size:.95rem}
+.card li{margin-bottom:8px}
+.card li::marker{color:var(--accent)}
+
+/* ============ HOME ============ */
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(0,212,255,.5);background:rgba(0,212,255,.08);
+  color:var(--accent);font-size:.78rem;font-weight:700;letter-spacing:2.5px;
+  padding:7px 16px;border-radius:999px;text-transform:uppercase;margin-bottom:16px;
+}
+.hero-badge::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulseDot 2s infinite}
+.hero-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:16px}
+h1{
+  font-size:clamp(1.7rem,4.6vw,3rem);font-weight:800;line-height:1.12;letter-spacing:-.5px;
+}
+h1 .grad{
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero-author{color:var(--muted);font-weight:600;font-size:.95rem;white-space:nowrap;padding-bottom:6px}
+.hero-author b{color:var(--amber)}
+
+.cover-wrap{
+  border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  box-shadow:0 0 50px rgba(0,212,255,.09),0 20px 60px rgba(0,0,0,.5);
+  margin:6px 0 24px;background:#0a0e1a;
+}
+svg.cover-anim{display:block;width:100%;height:auto}
+
+.hero-sub{font-size:clamp(1.02rem,2.4vw,1.25rem);color:var(--accent);font-weight:600;margin-bottom:8px}
+.hero-desc{color:var(--muted);font-size:1rem;max-width:820px;margin-bottom:24px}
+
+.quote-block{
+  border-left:4px solid var(--accent);
+  background:linear-gradient(90deg,rgba(0,212,255,.09),transparent 70%);
+  border-radius:0 12px 12px 0;padding:20px 24px;margin:0 0 24px;position:relative;
+}
+.quote-block .q-mark{font-size:2.6rem;color:var(--accent);opacity:.5;line-height:0;vertical-align:-14px;margin-right:6px}
+.quote-block p{font-size:clamp(1rem,2.4vw,1.2rem);font-style:italic;color:var(--txt)}
+
+.metrics-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;
+}
+.metric{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px 14px;text-align:center;transition:transform .2s,border-color .2s;
+}
+.metric:hover{transform:translateY(-4px);border-color:var(--accent)}
+.metric .num{font-size:2rem;font-weight:800;color:var(--accent);text-shadow:0 0 18px rgba(0,212,255,.4)}
+.metric:nth-child(2) .num{color:var(--purple);text-shadow:0 0 18px rgba(168,85,247,.4)}
+.metric:nth-child(3) .num{color:var(--green);text-shadow:0 0 18px rgba(34,197,94,.4)}
+.metric:nth-child(4) .num{color:var(--amber);text-shadow:0 0 18px rgba(245,158,11,.4)}
+.metric .lbl{font-size:.76rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+
+.dt-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px}
+.dt-chip{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:10px 18px;font-size:.92rem;color:var(--txt);font-weight:600;
+}
+.dt-chip b{color:var(--accent)}
+
+.model-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.model-card{
+  border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--card);
+  border-top:3px solid var(--accent);
+}
+.model-card:nth-child(2){border-top-color:var(--purple)}
+.model-card:nth-child(3){border-top-color:var(--green)}
+.model-card code{color:var(--accent);font-weight:700;font-size:.92rem;word-break:break-all}
+.model-card:nth-child(2) code{color:var(--purple)}
+.model-card:nth-child(3) code{color:var(--green)}
+.model-card p{font-size:.82rem;color:var(--muted);margin:8px 0 0}
+
+/* ============ SECTION HEADERS ============ */
+.sec-head{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.sec-icon{
+  width:52px;height:52px;flex-shrink:0;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:1.5rem;
+  background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.4);
+}
+.sec-kicker{font-size:.72rem;letter-spacing:3px;color:var(--accent);font-weight:700;text-transform:uppercase}
+.sec-head h2{font-size:clamp(1.35rem,3.4vw,1.9rem);font-weight:800;line-height:1.2}
+
+/* ============ CALLOUTS ============ */
+.callout{
+  display:flex;gap:14px;border-radius:10px;padding:16px 18px;margin:16px 0;
+  border:1px solid;font-size:.92rem;align-items:flex-start;
+}
+.callout .co-ico{font-size:1.2rem;line-height:1.3;flex-shrink:0}
+.callout .co-tag{font-weight:800;font-size:.72rem;letter-spacing:2px;display:block;margin-bottom:4px;text-transform:uppercase}
+.callout p{margin:0;color:#cbd5e1}
+.callout p+p{margin-top:8px}
+.callout.info{background:rgba(0,212,255,.07);border-color:rgba(0,212,255,.4)}
+.callout.info .co-tag,.callout.info .co-ico{color:var(--accent)}
+.callout.ejemplo{background:rgba(34,197,94,.07);border-color:rgba(34,197,94,.4)}
+.callout.ejemplo .co-tag,.callout.ejemplo .co-ico{color:var(--green)}
+.callout.advertencia{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.45)}
+.callout.advertencia .co-tag,.callout.advertencia .co-ico{color:var(--amber)}
+.callout.error{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.45)}
+.callout.error .co-tag,.callout.error .co-ico{color:var(--red)}
+
+/* ============ GLOSSARY ============ */
+.glossary{
+  background:linear-gradient(135deg,rgba(168,85,247,.09),rgba(168,85,247,.03));
+  border:1px solid rgba(168,85,247,.4);border-radius:10px;padding:15px 18px;margin:16px 0;
+}
+.glossary .g-tag{color:var(--purple);font-weight:800;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:5px}
+.glossary b{color:#d8b4fe}
+.glossary p{margin:0;font-size:.92rem;color:#cbd5e1}
+
+/* ============ CODE BLOCKS ============ */
+.code-block{
+  position:relative;background:#060a14;border:1px solid var(--border);
+  border-radius:10px;margin:16px 0;overflow:hidden;
+}
+.code-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 14px;border-bottom:1px solid var(--border);background:#0b1222;
+}
+.code-head .code-lang{font-size:.72rem;font-weight:700;letter-spacing:2px;color:var(--green);text-transform:uppercase}
+.copy-btn{
+  cursor:pointer;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.4);
+  color:var(--accent);font-family:inherit;font-size:.72rem;font-weight:700;
+  padding:4px 12px;border-radius:6px;transition:all .2s;
+}
+.copy-btn:hover{background:rgba(0,212,255,.22)}
+.copy-btn.copied{background:rgba(34,197,94,.2);border-color:var(--green);color:var(--green)}
+.code-block pre{padding:16px 18px;overflow-x:auto}
+.code-block code{
+  font-family:ui-monospace,'Cascadia Code',Consolas,'Courier New',monospace;
+  font-size:.86rem;color:#a5f3fc;line-height:1.7;white-space:pre;
+}
+.code-block.toml code{color:#fcd34d}
+code.inline{
+  font-family:ui-monospace,Consolas,monospace;font-size:.86em;
+  background:#060a14;border:1px solid var(--border);border-radius:5px;
+  padding:1px 7px;color:#7dd3fc;word-break:break-word;
+}
+.key-marker{
+  display:block;text-align:center;margin:14px auto;padding:14px;max-width:420px;
+  border:2px dashed var(--amber);border-radius:10px;background:rgba(245,158,11,.07);
+  font-family:ui-monospace,Consolas,monospace;font-weight:800;color:var(--amber);letter-spacing:2px;
+}
+
+/* ============ TABLES ============ */
+.table-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--border);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:520px}
+thead th{
+  background:#0b1222;color:var(--accent);text-align:left;
+  padding:12px 16px;font-size:.76rem;letter-spacing:1.5px;text-transform:uppercase;
+  border-bottom:2px solid var(--border);white-space:nowrap;
+}
+tbody td{padding:12px 16px;border-bottom:1px solid rgba(30,58,95,.5);color:#cbd5e1;vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(0,212,255,.04)}
+td code{color:#7dd3fc;font-family:ui-monospace,Consolas,monospace;font-size:.84rem}
+
+/* ============ STEPS ============ */
+.step{
+  display:flex;gap:18px;margin-bottom:18px;background:var(--card);
+  border:1px solid var(--border);border-radius:12px;padding:20px;
+}
+.step-num{
+  flex-shrink:0;width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:1.15rem;color:#04121a;
+  background:linear-gradient(135deg,var(--accent),#0891b2);
+  box-shadow:0 0 16px rgba(0,212,255,.4);
+}
+.step-body{flex:1;min-width:0}
+.step-body h4{color:var(--txt);font-size:1.02rem;margin-bottom:8px}
+.step-body p{font-size:.92rem;color:#cbd5e1;margin-bottom:10px}
+.step-body p:last-child{margin-bottom:0}
+.did-it{
+  margin-top:12px;padding:12px 15px;border-radius:8px;font-size:.88rem;
+  background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.35);color:#bbf7d0;
+}
+.did-it b{color:var(--green)}
+
+/* ============ BADGES / CHIPS ============ */
+.badge{
+  display:inline-block;padding:3px 11px;border-radius:999px;
+  font-size:.7rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+}
+.badge.b-acc{background:rgba(0,212,255,.12);color:var(--accent);border:1px solid rgba(0,212,255,.45)}
+.badge.b-grn{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.45)}
+.badge.b-amb{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.45)}
+.badge.b-red{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.45)}
+.badge.b-pur{background:rgba(168,85,247,.12);color:var(--purple);border:1px solid rgba(168,85,247,.45)}
+.chips-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.chip{
+  font-family:ui-monospace,Consolas,monospace;font-size:.8rem;
+  background:#060a14;border:1px solid var(--border);border-radius:999px;
+  padding:5px 14px;color:#7dd3fc;
+}
+
+/* ============ GRIDS ============ */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+/* ============ ACCORDION ============ */
+.acc-item{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;background:#0b1222}
+.acc-btn{
+  width:100%;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  background:transparent;border:none;color:var(--txt);font-family:inherit;
+  font-size:.95rem;font-weight:700;text-align:left;padding:15px 18px;
+  transition:background .2s;
+}
+.acc-btn:hover{background:rgba(0,212,255,.06)}
+.acc-btn .acc-arrow{color:var(--accent);transition:transform .3s;flex-shrink:0;font-size:.8rem}
+.acc-item.open .acc-arrow{transform:rotate(180deg)}
+.acc-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.acc-inner{padding:4px 18px 18px;font-size:.92rem;color:#cbd5e1}
+.acc-inner p{margin-bottom:10px}
+
+/* ============ QUIZ ============ */
+.qa{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
+.qa .q{font-weight:700;color:var(--txt);margin-bottom:12px;display:flex;gap:10px}
+.qa .q .qn{color:var(--purple);flex-shrink:0;font-weight:800}
+.reveal-btn{
+  cursor:pointer;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.5);
+  color:#d8b4fe;font-family:inherit;font-size:.82rem;font-weight:700;
+  padding:8px 18px;border-radius:8px;transition:all .2s;
+}
+.reveal-btn:hover{background:rgba(168,85,247,.25)}
+.qa .a{
+  display:none;margin-top:14px;padding:14px 16px;border-radius:8px;font-size:.92rem;
+  background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.4);color:#bbf7d0;
+}
+.qa.revealed .a{display:block;animation:fadeUp .35s ease}
+
+/* ============ TROUBLE CARD (9) ============ */
+.trouble-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.trouble-cell{background:#0b1222;border:1px solid var(--border);border-radius:10px;padding:16px}
+.trouble-cell .tc-tag{font-size:.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:6px}
+.trouble-cell p{font-size:.9rem;color:#cbd5e1;margin:0}
+.tc-p{color:var(--red)}.tc-c{color:var(--amber)}.tc-s{color:var(--green)}.tc-v{color:var(--accent)}
+
+/* ============ LINK CARD ============ */
+.link-card{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(168,85,247,.06));
+  border:1px solid rgba(0,212,255,.4);border-radius:12px;padding:22px;margin-top:8px;
+}
+.link-card .lc-ico{font-size:2rem}
+.link-card .lc-body{flex:1;min-width:220px}
+.link-card .lc-body strong{display:block;font-size:1.02rem;margin-bottom:4px}
+.link-card a{color:var(--accent);word-break:break-all;font-size:.9rem;text-decoration:none;border-bottom:1px dashed rgba(0,212,255,.5)}
+.link-card a:hover{color:#67e8f9}
+
+/* ============ CREDITS ============ */
+.credits-center{text-align:center}
+.credits-author{
+  font-size:clamp(1.5rem,4vw,2.2rem);font-weight:800;margin:22px 0 4px;
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.credits-role{color:var(--muted);font-size:.95rem;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.credits-dt{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:22px 0}
+.fiat{
+  margin-top:26px;font-style:italic;font-size:clamp(1.05rem,2.6vw,1.35rem);color:var(--amber);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:18px 10px;
+}
+.edu-note{color:var(--muted);font-size:.95rem;margin-top:18px}
+
+/* ============ FOOTER ============ */
+footer{
+  border-top:1px solid var(--border);margin-top:40px;padding:34px 20px 46px;
+  text-align:center;background:#080c16;
+}
+footer .f-line{color:var(--muted);font-size:.9rem;margin-bottom:7px}
+footer .f-line b{color:var(--txt)}
+footer .f-fiat{color:var(--amber);font-style:italic;margin-top:12px;font-size:.95rem}
+
+/* ============ TO TOP ============ */
+#toTop{
+  position:fixed;right:18px;bottom:18px;z-index:180;
+  width:50px;height:50px;border-radius:50%;cursor:pointer;
+  background:rgba(15,23,42,.95);border:1px solid var(--accent);color:var(--accent);
+  font-size:1.25rem;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transform:translateY(14px);
+  transition:all .3s ease;box-shadow:0 0 18px rgba(0,212,255,.3);
+}
+#toTop.visible{opacity:1;pointer-events:auto;transform:none}
+#toTop:hover{background:rgba(0,212,255,.15)}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:860px){
+  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-3{grid-template-columns:1fr}
+  .trouble-grid{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  main{padding:92px 13px 30px}
+  .card,.step{padding:18px 15px}
+  .grid-2{grid-template-columns:1fr}
+  .model-strip{grid-template-columns:1fr}
+  .nav-brand span.brand-txt{display:none}
+  .step{gap:12px}
+  .sec-icon{width:44px;height:44px;font-size:1.25rem}
+}
+
+/* ============ REDUCED MOTION ============ */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= SVG PORTADA (definición única reutilizable) ================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="cvBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1730"/>
+      <stop offset="0.5" stop-color="#0a0e1a"/>
+      <stop offset="1" stop-color="#0b1226"/>
+    </linearGradient>
+    <linearGradient id="cvScan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00d4ff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#00d4ff" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#00d4ff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="cvDeep" cx="0.35" cy="0.3" r="1">
+      <stop offset="0" stop-color="#164e63"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </radialGradient>
+    <pattern id="cvGrid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#1e3a5f" stroke-opacity="0.22" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <symbol id="cv-cover" viewBox="0 0 1600 900">
+    <!-- Fondo -->
+    <rect width="1600" height="900" fill="url(#cvBg)"/>
+    <rect width="1600" height="900" fill="url(#cvGrid)"/>
+    <rect width="150" height="900" fill="url(#cvScan)" opacity="0.09">
+      <animate attributeName="x" values="-160;1620" dur="9s" repeatCount="indefinite"/>
+    </rect>
+
+    <!-- Título -->
+    <text x="70" y="88" font-size="50" font-weight="800" fill="#e2e8f0" letter-spacing="2">DEEPSEEK V4 × CODEX</text>
+    <text x="72" y="126" font-size="21" fill="#00d4ff" letter-spacing="6">INTEGRACIÓN NATIVA · RESPONSES API</text>
+    <path d="M46 140 V44 H142" fill="none" stroke="#00d4ff" stroke-width="3" opacity="0.7"/>
+
+    <!-- Badge fecha -->
+    <rect x="1280" y="52" width="250" height="46" rx="10" fill="#0f172a" stroke="#1e3a5f" stroke-width="1.5"/>
+    <text x="1405" y="82" text-anchor="middle" font-size="17" fill="#94a3b8" letter-spacing="1">01/09/2026 · 09:57:33</text>
+
+    <!-- ============ HUB CODEX ============ -->
+    <rect x="70" y="190" width="360" height="110" rx="14" fill="#0f172a" stroke="#1e3a5f" stroke-width="2">
+      <animate attributeName="stroke" values="#1e3a5f;#00d4ff;#1e3a5f" dur="5s" repeatCount="indefinite"/>
+    </rect>
+    <text x="250" y="244" text-anchor="middle" font-size="38" font-weight="800" fill="#ffffff" letter-spacing="3">CODEX</text>
+    <text x="250" y="278" text-anchor="middle" font-size="16" fill="#94a3b8">Asistente de IA para programar · OpenAI</text>
+
+    <!-- Conectores hub → clientes -->
+    <path d="M180 300 C 160 325 136 325 126 350" fill="none" stroke="#1e3a5f" stroke-width="2.5"/>
+    <path d="M250 300 L 250 350" fill="none" stroke="#1e3a5f" stroke-width="2.5"/>
+    <path d="M320 300 C 340 325 364 325 374 350" fill="none" stroke="#1e3a5f" stroke-width="2.5"/>
+
+    <!-- Clientes -->
+    <rect x="70" y="350" width="112" height="70" rx="10" fill="#0d1830" stroke="#1e3a5f" stroke-width="1.5"/>
+    <text x="126" y="382" text-anchor="middle" font-size="18" fill="#00d4ff" font-weight="700">&gt;_</text>
+    <text x="126" y="406" text-anchor="middle" font-size="13.5" fill="#cbd5e1">Codex CLI</text>
+
+    <rect x="194" y="350" width="112" height="70" rx="10" fill="#0d1830" stroke="#1e3a5f" stroke-width="1.5"/>
+    <circle cx="250" cy="375" r="9" fill="none" stroke="#22c55e" stroke-width="2.5">
+      <animate attributeName="r" values="7;10;7" dur="2.6s" repeatCount="indefinite"/>
+    </circle>
+    <text x="250" y="406" text-anchor="middle" font-size="13.5" fill="#cbd5e1">ChatGPT</text>
+
+    <rect x="318" y="350" width="112" height="70" rx="10" fill="#0d1830" stroke="#1e3a5f" stroke-width="1.5"/>
+    <text x="374" y="383" text-anchor="middle" font-size="17" fill="#a855f7" font-weight="700">&lt;/&gt;</text>
+    <text x="374" y="406" text-anchor="middle" font-size="13.5" fill="#cbd5e1">VS Code</text>
+
+    <!-- Rutas clientes → config (base) -->
+    <path d="M126 420 C 210 500 380 300 520 285" fill="none" stroke="#1e3a5f" stroke-width="3"/>
+    <path d="M250 420 C 320 500 420 330 520 315" fill="none" stroke="#1e3a5f" stroke-width="3"/>
+    <path d="M374 420 C 430 490 470 390 520 385" fill="none" stroke="#1e3a5f" stroke-width="3"/>
+    <!-- Flujo punteado -->
+    <path d="M126 420 C 210 500 380 300 520 285" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-dasharray="8 14" opacity="0.65">
+      <animate attributeName="stroke-dashoffset" from="440" to="0" dur="5s" repeatCount="indefinite"/>
+    </path>
+    <path d="M250 420 C 320 500 420 330 520 315" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-dasharray="8 14" opacity="0.65">
+      <animate attributeName="stroke-dashoffset" from="440" to="0" dur="5s" repeatCount="indefinite"/>
+    </path>
+    <path d="M374 420 C 430 490 470 390 520 385" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-dasharray="8 14" opacity="0.65">
+      <animate attributeName="stroke-dashoffset" from="440" to="0" dur="5s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Etiquetas sobre la config -->
+    <text x="645" y="208" text-anchor="middle" font-size="15" fill="#f59e0b" letter-spacing="1.5" font-weight="700">CONFIG COMPARTIDA POR LOS 3 CLIENTES</text>
+
+    <!-- Archivos de configuración -->
+    <rect x="520" y="230" width="250" height="90" rx="12" fill="#0f172a" stroke="#00d4ff" stroke-width="1.8">
+      <animate attributeName="stroke-opacity" values="0.45;1;0.45" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+    <text x="645" y="272" text-anchor="middle" font-size="24" font-weight="800" fill="#e2e8f0">config.toml</text>
+    <text x="645" y="298" text-anchor="middle" font-size="13.5" fill="#94a3b8">proveedor + modelo activo</text>
+
+    <rect x="520" y="340" width="250" height="90" rx="12" fill="#0f172a" stroke="#a855f7" stroke-width="1.8">
+      <animate attributeName="stroke-opacity" values="1;0.45;1" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+    <text x="645" y="382" text-anchor="middle" font-size="24" font-weight="800" fill="#e2e8f0">models.json</text>
+    <text x="645" y="408" text-anchor="middle" font-size="13.5" fill="#94a3b8">catálogo de modelos</text>
+    <text x="645" y="456" text-anchor="middle" font-size="15" fill="#64748b">~/.codex/</text>
+
+    <!-- Flujo llave API -->
+    <text x="452" y="728" text-anchor="middle" font-size="15.5" fill="#f59e0b" font-weight="700">API Key · empieza por sk-</text>
+    <text x="452" y="752" text-anchor="middle" font-size="14" fill="#94a3b8">platform.deepseek.com/api_keys</text>
+    <g>
+      <circle r="9" fill="none" stroke="#f59e0b" stroke-width="3.5"/>
+      <rect x="7" y="-2.5" width="16" height="5" rx="2" fill="#f59e0b"/>
+      <rect x="17" y="2" width="4" height="7" rx="1.5" fill="#f59e0b"/>
+      <animateMotion dur="5.5s" repeatCount="indefinite" path="M452 700 C 410 590 460 490 560 435"/>
+      <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="5.5s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- Tubería config → Responses API → DeepSeek -->
+    <path d="M770 335 C 815 335 812 385 850 385" fill="none" stroke="#1e3a5f" stroke-width="4"/>
+    <path d="M770 335 C 815 335 812 385 850 385" fill="none" stroke="#00d4ff" stroke-width="3" stroke-dasharray="10 14" opacity="0.8">
+      <animate attributeName="stroke-dashoffset" from="480" to="0" dur="4.5s" repeatCount="indefinite"/>
+    </path>
+    <path d="M1010 385 L 1140 385" fill="none" stroke="#1e3a5f" stroke-width="4"/>
+    <path d="M1010 385 L 1140 385" fill="none" stroke="#22c55e" stroke-width="3" stroke-dasharray="10 14" opacity="0.8">
+      <animate attributeName="stroke-dashoffset" from="480" to="0" dur="3.5s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Fragmentos de configuración flotantes -->
+    <text x="790" y="252" font-size="17" fill="#a855f7" opacity="0">[model_providers.deepseek]
+      <animate attributeName="opacity" values="0;0.95;0.95;0" keyTimes="0;0.15;0.7;1" dur="7s" begin="0s" repeatCount="indefinite"/>
+    </text>
+    <text x="790" y="555" font-size="17" fill="#22c55e" opacity="0">wire_api = "responses"
+      <animate attributeName="opacity" values="0;0.95;0.95;0" keyTimes="0;0.15;0.7;1" dur="7s" begin="2.3s" repeatCount="indefinite"/>
+    </text>
+
+    <!-- NODO RESPONSES API -->
+    <g>
+      <circle cx="930" cy="385" r="100" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4 12" opacity="0.55">
+        <animateTransform attributeName="transform" type="rotate" from="0 930 385" to="360 930 385" dur="16s" repeatCount="indefinite"/>
+      </circle>
+      <path d="M850 385 L890 316 L970 316 L1010 385 L970 454 L890 454 Z" fill="#0f172a" stroke="#22c55e" stroke-width="2.5">
+        <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="2.8s" repeatCount="indefinite"/>
+      </path>
+      <text x="930" y="378" text-anchor="middle" font-size="21" font-weight="800" fill="#22c55e" letter-spacing="1">RESPONSES</text>
+      <text x="930" y="406" text-anchor="middle" font-size="21" font-weight="800" fill="#22c55e" letter-spacing="4">API</text>
+      <text x="930" y="492" text-anchor="middle" font-size="14" fill="#94a3b8">protocolo compartido</text>
+    </g>
+
+    <!-- NODO DEEPSEEK -->
+    <circle cx="1210" cy="385" r="70" fill="none" stroke="#00d4ff" stroke-width="2">
+      <animate attributeName="r" values="70;120" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="1210" cy="385" r="70" fill="none" stroke="#00d4ff" stroke-width="2">
+      <animate attributeName="r" values="70;120" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="1210" cy="385" r="70" fill="url(#cvDeep)" stroke="#00d4ff" stroke-width="2.5"/>
+    <text x="1210" y="380" text-anchor="middle" font-size="25" font-weight="800" fill="#ffffff">DeepSeek</text>
+    <text x="1210" y="408" text-anchor="middle" font-size="17" fill="#00d4ff" letter-spacing="3">API</text>
+    <text x="1210" y="290" text-anchor="middle" font-size="15" fill="#94a3b8">api.deepseek.com</text>
+
+    <!-- Ramas a modelos -->
+    <path d="M1280 385 C 1315 385 1300 207 1330 207" fill="none" stroke="#1e3a5f" stroke-width="3.5"/>
+    <path d="M1280 385 L 1330 385" fill="none" stroke="#1e3a5f" stroke-width="3.5"/>
+    <path d="M1280 385 C 1315 385 1300 563 1330 563" fill="none" stroke="#1e3a5f" stroke-width="3.5"/>
+    <path d="M1280 385 C 1315 385 1300 207 1330 207" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-dasharray="8 14" opacity="0.75">
+      <animate attributeName="stroke-dashoffset" from="480" to="0" dur="4s" repeatCount="indefinite"/>
+    </path>
+    <path d="M1280 385 L 1330 385" fill="none" stroke="#a855f7" stroke-width="2.5" stroke-dasharray="8 14" opacity="0.75">
+      <animate attributeName="stroke-dashoffset" from="480" to="0" dur="4s" repeatCount="indefinite"/>
+    </path>
+    <path d="M1280 385 C 1315 385 1300 563 1330 563" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-dasharray="8 14" opacity="0.75">
+      <animate attributeName="stroke-dashoffset" from="480" to="0" dur="4s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Chips de modelos -->
+    <g>
+      <rect x="1330" y="170" width="240" height="74" rx="12" fill="#0f172a" stroke="#00d4ff" stroke-width="2"/>
+      <rect x="1330" y="170" width="240" height="74" rx="12" fill="none" stroke="#00d4ff" stroke-width="4" opacity="0">
+        <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.55;0.75" dur="4.8s" begin="0s" repeatCount="indefinite"/>
+      </rect>
+      <circle cx="1360" cy="207" r="7" fill="#00d4ff">
+        <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite"/>
+      </circle>
+      <text x="1380" y="202" font-size="19" font-weight="800" fill="#e2e8f0">deepseek-v4-flash</text>
+      <text x="1380" y="226" font-size="12.5" fill="#00d4ff" letter-spacing="2" font-weight="700">OPCIÓN 1 DEL MENÚ</text>
+    </g>
+    <g>
+      <rect x="1330" y="348" width="240" height="74" rx="12" fill="#0f172a" stroke="#a855f7" stroke-width="2"/>
+      <rect x="1330" y="348" width="240" height="74" rx="12" fill="none" stroke="#a855f7" stroke-width="4" opacity="0">
+        <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.55;0.75" dur="4.8s" begin="1.6s" repeatCount="indefinite"/>
+      </rect>
+      <circle cx="1360" cy="385" r="7" fill="#a855f7">
+        <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" begin="0.5s" repeatCount="indefinite"/>
+      </circle>
+      <text x="1380" y="380" font-size="19" font-weight="800" fill="#e2e8f0">deepseek-v4-pro</text>
+      <text x="1380" y="404" font-size="12.5" fill="#a855f7" letter-spacing="2" font-weight="700">OPCIÓN 2 DEL MENÚ</text>
+    </g>
+    <g>
+      <rect x="1330" y="526" width="240" height="74" rx="12" fill="#0f172a" stroke="#22c55e" stroke-width="2"/>
+      <rect x="1330" y="526" width="240" height="74" rx="12" fill="none" stroke="#22c55e" stroke-width="4" opacity="0">
+        <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.55;0.75" dur="4.8s" begin="3.2s" repeatCount="indefinite"/>
+      </rect>
+      <circle cx="1358" cy="556" r="9" fill="none" stroke="#22c55e" stroke-width="2"/>
+      <circle cx="1358" cy="556" r="3.5" fill="#22c55e"/>
+      <text x="1380" y="556" font-size="16.5" font-weight="800" fill="#e2e8f0">deepseek-v4-flash-vision-exp</text>
+      <text x="1380" y="580" font-size="12.5" fill="#22c55e" letter-spacing="1.5" font-weight="700">OPCIÓN 3 · ADMITE IMÁGENES</text>
+    </g>
+
+    <!-- Paquetes de datos en movimiento -->
+    <g><circle r="12" fill="#00d4ff" opacity="0.2"/><circle r="5.5" fill="#00d4ff"/>
+      <animateMotion dur="3.6s" begin="0s" repeatCount="indefinite" path="M126 420 C 210 500 380 300 520 285"/></g>
+    <g><circle r="12" fill="#00d4ff" opacity="0.2"/><circle r="5.5" fill="#00d4ff"/>
+      <animateMotion dur="3.6s" begin="1.2s" repeatCount="indefinite" path="M250 420 C 320 500 420 330 520 315"/></g>
+    <g><circle r="12" fill="#00d4ff" opacity="0.2"/><circle r="5.5" fill="#00d4ff"/>
+      <animateMotion dur="3.6s" begin="2.4s" repeatCount="indefinite" path="M374 420 C 430 490 470 390 520 385"/></g>
+
+    <g><circle r="13" fill="#00d4ff" opacity="0.22"/><circle r="6.5" fill="#00d4ff"/>
+      <animateMotion dur="2.4s" begin="0.4s" repeatCount="indefinite" path="M770 335 C 815 335 812 385 850 385"/></g>
+    <g><circle r="13" fill="#00d4ff" opacity="0.22"/><circle r="6.5" fill="#00d4ff"/>
+      <animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" path="M770 335 C 815 335 812 385 850 385"/></g>
+
+    <g><circle r="13" fill="#22c55e" opacity="0.22"/><circle r="6.5" fill="#22c55e"/>
+      <animateMotion dur="2s" begin="0s" repeatCount="indefinite" path="M1010 385 L 1140 385"/></g>
+    <g><circle r="13" fill="#22c55e" opacity="0.22"/><circle r="6.5" fill="#22c55e"/>
+      <animateMotion dur="2s" begin="1s" repeatCount="indefinite" path="M1010 385 L 1140 385"/></g>
+
+    <g><circle r="13" fill="#00d4ff" opacity="0.25"/><circle r="6.5" fill="#00d4ff"/>
+      <animateMotion dur="2.6s" begin="0s" repeatCount="indefinite" path="M1280 385 C 1315 385 1300 207 1330 207"/></g>
+    <g><circle r="13" fill="#a855f7" opacity="0.25"/><circle r="6.5" fill="#a855f7"/>
+      <animateMotion dur="2.6s" begin="0.9s" repeatCount="indefinite" path="M1280 385 L 1330 385"/></g>
+    <g><circle r="13" fill="#22c55e" opacity="0.25"/><circle r="6.5" fill="#22c55e"/>
+      <animateMotion dur="2.6s" begin="1.8s" repeatCount="indefinite" path="M1280 385 C 1315 385 1300 563 1330 563"/></g>
+
+    <!-- Leyenda inferior -->
+    <line x1="70" y1="800" x2="1530" y2="800" stroke="#1e3a5f" stroke-width="1.5" opacity="0.7"/>
+    <text x="70" y="848" font-size="18" fill="#94a3b8" letter-spacing="2">3 CLIENTES ▸ 1 CONFIGURACIÓN COMPARTIDA ▸ RESPONSES API ▸ 3 MODELOS</text>
+    <text x="1496" y="848" text-anchor="end" font-size="18" fill="#00d4ff" font-weight="700">&gt;_ listo</text>
+    <rect x="1506" y="830" width="13" height="22" fill="#00d4ff">
+      <animate attributeName="opacity" values="1;0" dur="1s" calcMode="discrete" repeatCount="indefinite"/>
+    </rect>
+  </symbol>
+</svg>
+
+<div id="progressBar"></div>
+
+<!-- ================= NAVBAR ================= -->
+<nav id="mainNav" aria-label="Navegación principal">
+  <div class="nav-brand"><span class="dot"></span><span class="brand-txt">DS&nbsp;V4&nbsp;×&nbsp;CODEX</span></div>
+  <div class="nav-scroll" id="navScroll">
+    <button class="nav-btn active" data-target="inicio">Inicio</button>
+    <button class="nav-btn" data-target="intro">Introducción</button>
+    <button class="nav-btn" data-target="objetivos">Objetivos</button>
+    <button class="nav-btn" data-target="requisitos">Requisitos</button>
+    <button class="nav-btn" data-target="conceptos">Conceptos</button>
+    <button class="nav-btn" data-target="preparacion">Preparación</button>
+    <button class="nav-btn" data-target="opcion1">Opción 1 · Script</button>
+    <button class="nav-btn" data-target="opcion2">Opción 2 · Manual</button>
+    <button class="nav-btn" data-target="config">Config detallada</button>
+    <button class="nav-btn" data-target="verificacion">Primer uso y verificación</button>
+    <button class="nav-btn" data-target="problemas">Problemas y errores</button>
+    <button class="nav-btn" data-target="despues">Después de configurar</button>
+    <button class="nav-btn" data-target="limitaciones">Limitaciones</button>
+    <button class="nav-btn" data-target="resumen">Resumen</button>
+    <button class="nav-btn" data-target="referencia">Referencia oficial</button>
+    <button class="nav-btn credits-btn" data-target="creditos">★ Créditos</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- ================= HOME ================= -->
+<section id="inicio" class="section active">
+  <span class="hero-badge">Tutorial técnico · Guía para principiantes</span>
+  <div class="hero-top">
+    <h1>Integración de <span class="grad">DeepSeek V4</span> con <span class="grad">Codex</span></h1>
+    <div class="hero-author">by <b>Rubén Sbarsky</b></div>
+  </div>
+
+  <div class="cover-wrap">
+    <svg class="cover-anim" viewBox="0 0 1600 900" role="img" aria-label="Diagrama animado: los tres clientes de Codex comparten la configuración config.toml y models.json y se conectan mediante la Responses API a la API de DeepSeek, que sirve tres modelos: deepseek-v4-flash, deepseek-v4-pro y deepseek-v4-flash-vision-exp.">
+      <use href="#cv-cover" xlink:href="#cv-cover"></use>
+    </svg>
+  </div>
+
+  <p class="hero-sub">Guía paso a paso, para principiantes, basada únicamente en la documentación oficial de DeepSeek.</p>
+  <p class="hero-desc">Codex se comunica con los modelos de IA a través de la Responses API, y la API de DeepSeek es compatible de forma nativa con ella. Este tutorial explica cómo preparar Codex para trabajar con DeepSeek V4, siguiendo exclusivamente lo indicado por la documentación oficial.</p>
+
+  <blockquote class="quote-block">
+    <p><span class="q-mark">“</span>Si no puedes explicarlo de forma sencilla, es que no lo entiendes lo suficientemente bien.”</p>
+  </blockquote>
+
+  <div class="metrics-grid">
+    <div class="metric"><div class="num">3</div><div class="lbl">Modelos DeepSeek disponibles</div></div>
+    <div class="metric"><div class="num">2</div><div class="lbl">Métodos de configuración</div></div>
+    <div class="metric"><div class="num">3</div><div class="lbl">Clientes de Codex compatibles</div></div>
+    <div class="metric"><div class="num">1</div><div class="lbl">Archivo de configuración compartido</div></div>
+  </div>
+
+  <div class="dt-row">
+    <span class="dt-chip">📅 Fecha: <b>01/09/2026</b></span>
+    <span class="dt-chip">🕘 Hora: <b>09:57:33</b></span>
+    <span class="dt-chip">📄 Fuente: <b>Documentación oficial de DeepSeek</b></span>
+  </div>
+
+  <div class="model-strip">
+    <div class="model-card"><code>deepseek-v4-flash</code><p>Opción 1 del menú del script automático.</p></div>
+    <div class="model-card"><code>deepseek-v4-pro</code><p>Opción 2 del menú del script automático.</p></div>
+    <div class="model-card"><code>deepseek-v4-flash-vision-exp</code><p>Opción 3 del menú. Acepta adicionalmente entrada de imágenes.</p></div>
+  </div>
+</section>
+
+<!-- ================= INTRODUCCIÓN ================= -->
+<section id="intro" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">📖</div>
+    <div><div class="sec-kicker">Sección 01</div><h2>Introducción</h2></div>
+  </div>
+
+  <div class="card">
+    <p><strong>Codex</strong> es un asistente de inteligencia artificial para programar, creado por <strong>OpenAI</strong>. Codex se comunica con los modelos de IA a través de un sistema llamado <strong>Responses API</strong> (una forma estandarizada en la que una aplicación “habla” con un modelo de IA a través de internet).</p>
+    <p>Según la documentación oficial de DeepSeek, la API de DeepSeek es <strong>compatible de forma nativa</strong> con esa misma Responses API, lo que permite conectar los modelos de DeepSeek a Codex.</p>
+    <div class="callout info">
+      <span class="co-ico">ℹ️</span>
+      <div><span class="co-tag">Info · Dato importante de la documentación oficial</span>
+        <p>Todos los clientes de Codex — es decir, <strong>Codex CLI</strong> (la versión de línea de comandos), la <strong>aplicación de escritorio de ChatGPT</strong> y la <strong>extensión de Codex para VS Code</strong> — comparten el mismo archivo de configuración. Esto significa que, según la fuente oficial, configurando ese archivo una sola vez, DeepSeek queda disponible en los tres clientes a la vez.</p>
+      </div>
+    </div>
+    <div class="chips-row">
+      <span class="chip">&gt;_ Codex CLI</span>
+      <span class="chip">🗨 ChatGPT de escritorio</span>
+      <span class="chip">&lt;/&gt; Extensión VS Code</span>
+      <span class="chip">= 1 configuración compartida</span>
+    </div>
+    <div class="glossary">
+      <span class="g-tag">📖 Glosario · Variable de entorno / archivo de configuración</span>
+      <p>Un archivo de configuración es un documento de texto que un programa lee al arrancar para saber cómo debe comportarse (por ejemplo, qué modelo de IA usar). No hace falta modificar el código del programa: basta con editar ese archivo.</p>
+    </div>
+    <p>Este tutorial explica, siguiendo exclusivamente lo indicado por la documentación oficial, cómo preparar Codex para trabajar con DeepSeek V4.</p>
+  </div>
+</section>
+
+<!-- ================= 1. OBJETIVOS ================= -->
+<section id="objetivos" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🎯</div>
+    <div><div class="sec-kicker">Sección 02 · Capítulo 1</div><h2>¿Qué vamos a conseguir?</h2></div>
+  </div>
+
+  <div class="card">
+    <h3>Al final de este tutorial:</h3>
+    <ul>
+      <li>Habrás configurado <strong>DeepSeek como proveedor de modelo</strong> dentro de Codex, usando el método que ofrece la documentación oficial (un <strong>script automático</strong> o la <strong>edición manual de dos archivos</strong>).</li>
+      <li>Sabrás qué modelos de DeepSeek quedan disponibles para Codex según la fuente oficial: <code class="inline">deepseek-v4-flash</code>, <code class="inline">deepseek-v4-pro</code> y <code class="inline">deepseek-v4-flash-vision-exp</code>.</li>
+    </ul>
+    <div class="callout advertencia">
+      <span class="co-ico">⚠️</span>
+      <div><span class="co-tag">Nota de transparencia</span>
+        <p>La documentación oficial de DeepSeek para esta integración incluye, más adelante en la misma página, una sección de referencia de campos de <code class="inline">config.toml</code>, una sección de verificación y una sección de solución de problemas. Al intentar leer la página web oficial de forma automática, una parte del contenido (un bloque de datos muy extenso incrustado en la página) impidió recuperar el texto de esas secciones.</p>
+        <p>Por lo tanto, siguiendo la regla de oro de este encargo, este tutorial <strong>no inventa el contenido de esas secciones</strong> y lo señala explícitamente donde corresponde, en lugar de presentarlo como si hubiera sido verificado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2. REQUISITOS ================= -->
+<section id="requisitos" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">✅</div>
+    <div><div class="sec-kicker">Sección 03 · Capítulo 2</div><h2>Requisitos previos</h2></div>
+  </div>
+
+  <div class="card">
+    <h3>Según lo que la documentación oficial menciona explícitamente:</h3>
+    <div class="grid-2">
+      <div class="card" style="margin-bottom:0">
+        <h4>1️⃣ Codex instalado y abierto al menos una vez</h4>
+        <p>Tener instalado <strong>Codex CLI</strong> o la <strong>aplicación de escritorio de ChatGPT</strong>, y haberlo abierto al menos una vez. Esto es necesario porque, según la fuente oficial, así se crea la carpeta <code class="inline">~/.codex</code> en tu ordenador, que es donde se guardará la configuración.</p>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <h4>2️⃣ Una clave de API de DeepSeek</h4>
+        <p>La documentación oficial indica que esta clave empieza siempre por <code class="inline">sk-</code> y que se obtiene desde la Plataforma de DeepSeek, concretamente en <code class="inline">platform.deepseek.com/api_keys</code>.</p>
+      </div>
+    </div>
+    <div class="glossary">
+      <span class="g-tag">📖 Glosario · Clave de API (API Key)</span>
+      <p>Es un código secreto y personal que identifica tu cuenta ante un servicio en internet. Sirve para que DeepSeek sepa quién está haciendo la petición y pueda facturarla o autorizarla. <b>Nunca debe compartirse.</b></p>
+    </div>
+    <div class="callout info">
+      <span class="co-ico">ℹ️</span>
+      <div><span class="co-tag">Info</span>
+        <p>La documentación oficial proporcionada <strong>no especifica requisitos adicionales</strong> de sistema operativo, versión mínima de Codex, ni requisitos de hardware para esta integración.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3. CONCEPTOS ================= -->
+<section id="conceptos" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🧠</div>
+    <div><div class="sec-kicker">Sección 04 · Capítulo 3</div><h2>Conceptos básicos</h2></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>3.1 · ¿Qué es DeepSeek?</h3>
+      <p>La documentación oficial <strong>no incluye</strong>, en el texto al que se pudo acceder de esta página concreta, una definición general de “qué es DeepSeek” como empresa o proyecto.</p>
+      <p>Lo que sí indica explícitamente es que DeepSeek ofrece una <strong>API que es compatible de forma nativa con la Responses API</strong>, y que por eso puede conectarse a Codex.</p>
+    </div>
+    <div class="card">
+      <h3>3.2 · ¿Qué es Codex?</h3>
+      <p>Según la documentación oficial: <em>“Codex is an AI coding assistant from OpenAI”</em> — es decir, Codex es un asistente de inteligencia artificial para programar, desarrollado por OpenAI.</p>
+      <p>Se comunica con los modelos a través de la <strong>Responses API</strong>.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3.3 · ¿Qué significa integrar DeepSeek con Codex?</h3>
+    <p>Según la fuente oficial, integrar DeepSeek con Codex significa configurar DeepSeek como <strong>“proveedor de modelo”</strong> (<em>model provider</em>) dentro del archivo de configuración compartido por todos los clientes de Codex.</p>
+    <p>Una vez hecho esto, Codex puede usar los modelos de DeepSeek <strong>“como si fueran uno de sus modelos integrados”</strong> (traducción del término oficial <em>“just like its built-in models”</em>, usado para explicar el propósito del archivo <code class="inline">models.json</code>).</p>
+    <div class="glossary">
+      <span class="g-tag">📖 Glosario · Modelo (de IA)</span>
+      <p>Es el “cerebro” de inteligencia artificial concreto que responde a tus preguntas o genera código. Codex, por sí mismo, no es un modelo: es una herramienta que puede usar distintos modelos, entre ellos los de DeepSeek.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4. PREPARACIÓN ================= -->
+<section id="preparacion" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🛠️</div>
+    <div><div class="sec-kicker">Sección 05 · Capítulo 4</div><h2>Preparación</h2></div>
+  </div>
+
+  <div class="card">
+    <p>Antes de empezar, según los requisitos previos indicados en la sección 2:</p>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body"><h4>Comprueba tu instalación</h4><p>Comprueba que tienes Codex CLI o la aplicación de ChatGPT de escritorio instalados.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body"><h4>Ábrelos al menos una vez</h4><p>Para que se cree la carpeta <code class="inline">~/.codex</code>.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body"><h4>Obtén tu clave de API de DeepSeek</h4><p>En <code class="inline">platform.deepseek.com/api_keys</code>. Guárdala en un lugar seguro; la necesitarás en el paso de configuración.</p></div>
+    </div>
+    <div class="callout info">
+      <span class="co-ico">ℹ️</span>
+      <div><span class="co-tag">Info</span>
+        <p>La documentación oficial no detalla, en el texto accesible, cómo instalar Codex CLI o la aplicación de ChatGPT desde cero (por ejemplo, no indica un comando de instalación). Se asume que el lector ya cuenta con uno de estos clientes instalado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5A. OPCIÓN 1 · SCRIPT ================= -->
+<section id="opcion1" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">⚡</div>
+    <div><div class="sec-kicker">Sección 06 · Capítulo 5</div><h2>Instalación y configuración — Opción 1: Script automático</h2></div>
+  </div>
+
+  <div class="card">
+    <p>La documentación oficial ofrece <strong>dos caminos alternativos</strong> para esta configuración: un <strong>script automático</strong> (Opción 1, marcada como <span class="badge b-grn">Recomendada por la documentación oficial</span>) o la <strong>edición manual de archivos</strong> (Opción 2). En esta pestaña se explica la Opción 1.</p>
+  </div>
+
+  <div class="card">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Verifica que Codex ya se ha abierto una vez</h4>
+        <p>Antes de ejecutar el script, la documentación oficial indica expresamente: <em>“make sure Codex CLI or the ChatGPT desktop app is installed and has been launched at least once (so that the <code class="inline">~/.codex</code> directory exists)”</em>.</p>
+        <div class="did-it"><b>¿Qué acabamos de hacer?</b> Nos hemos asegurado de que existe la carpeta donde Codex guarda su configuración, para que el script tenga dónde escribir.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Ejecuta el script oficial</h4>
+        <p><span class="badge b-grn">Ejemplo oficial / documentado</span> Según tu sistema operativo, la documentación oficial indica un comando distinto.</p>
+        <p><strong>En macOS / Linux</strong>, ejecuta en la terminal:</p>
+        <div class="code-block">
+          <div class="code-head"><span class="code-lang">bash · macOS / Linux</span><button class="copy-btn" type="button">Copiar</button></div>
+          <pre><code>bash &lt;(curl -fsSL https://cdn.deepseek.com/api-docs/codex-deepseek-setup-en.sh)</code></pre>
+        </div>
+        <p><strong>En Windows</strong>, ejecuta en PowerShell:</p>
+        <div class="code-block">
+          <div class="code-head"><span class="code-lang">PowerShell · Windows</span><button class="copy-btn" type="button">Copiar</button></div>
+          <pre><code>irm https://cdn.deepseek.com/api-docs/codex-deepseek-setup-en.ps1 | iex</code></pre>
+        </div>
+        <div class="did-it"><b>¿Qué acabamos de hacer?</b> Hemos descargado y ejecutado, en un solo paso, el script oficial de DeepSeek que configura Codex automáticamente. Estos comandos descargan el script directamente desde el dominio oficial de DeepSeek (<code class="inline">cdn.deepseek.com</code>) y lo ejecutan en el mismo paso.</div>
+        <div class="glossary">
+          <span class="g-tag">📖 Glosario · Terminal / PowerShell</span>
+          <p>Son programas donde se escriben comandos de texto en lugar de hacer clic en botones. La Terminal se usa en macOS y Linux; PowerShell es el equivalente en Windows.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Elige el modelo desde el menú</h4>
+        <p>La documentación oficial indica que, tras lanzar el script, hay que elegir un modelo desde un menú que aparece en pantalla. Las opciones documentadas son:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Opción del menú</th><th>Modelo</th><th>Comentario oficial</th></tr></thead>
+            <tbody>
+              <tr><td>Opción 1</td><td><code>deepseek-v4-flash</code></td><td>—</td></tr>
+              <tr><td>Opción 2</td><td><code>deepseek-v4-pro</code></td><td>—</td></tr>
+              <tr><td>Opción 3</td><td><code>deepseek-v4-flash-vision-exp</code></td><td>Acepta adicionalmente entrada de imágenes</td></tr>
+              <tr><td>Opción 9</td><td>(ninguno)</td><td>Restaura la configuración por defecto de Codex, eliminando los ajustes de DeepSeek</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="did-it"><b>¿Qué acabamos de hacer?</b> Hemos indicado al script qué modelo de DeepSeek queremos usar por defecto en Codex.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Introduce tu clave de API</h4>
+        <p>La documentación oficial indica: <em>“On first run, the script asks for your API Key (starting with <code class="inline">sk-</code>; get one from the DeepSeek Platform)”</em>.</p>
+        <div class="did-it"><b>¿Qué acabamos de hacer?</b> Le hemos dado al script la clave que identifica tu cuenta de DeepSeek, para que la guarde en la configuración de Codex.</div>
+        <div class="key-marker">TU_API_KEY</div>
+        <div class="callout error">
+          <span class="co-ico">🚫</span>
+          <div><span class="co-tag">Error · Nunca compartas tu clave</span>
+            <p>Nunca escribas tu clave real en documentos, capturas de pantalla o mensajes que vayas a compartir. Usa siempre un marcador como el de arriba en ejemplos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>¿Qué hace el script exactamente? (según la documentación oficial)</h3>
+    <p>La fuente oficial detalla que el script realiza estos cuatro pasos internos. Pulsa cada uno para desplegarlo:</p>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">1 · Copia de seguridad de tu configuración <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>El archivo <code class="inline">~/.codex/config.toml</code> se copia a <code class="inline">~/.codex/backup-deepseek/</code>, de modo que puedas restaurarlo en cualquier momento.</p></div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">2 · Escribe el catálogo de modelos ~/.codex/models.json <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>Este archivo declara a Codex los metadatos de los modelos de DeepSeek (tamaño de la ventana de contexto, niveles de esfuerzo de razonamiento admitidos, formatos de llamada a herramientas, etc.), de forma que Codex pueda usar los modelos de DeepSeek igual que usa sus modelos integrados.</p></div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">3 · Modifica ~/.codex/config.toml <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>Solo se reescriben los campos necesarios, y se añade una sección <code class="inline">[model_providers.deepseek]</code>. Tus ajustes existentes, como los servidores MCP o los niveles de confianza de proyecto, se conservan. Si algún campo existente entra en conflicto con la configuración de DeepSeek, el script lo elimina e imprime en pantalla el motivo de cada eliminación.</p></div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">4 · Valida la sintaxis antes de escribir <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>El script comprueba la sintaxis de <code class="inline">config.toml</code> y de <code class="inline">models.json</code> antes de escribir; si la validación falla, el proceso se detiene sin modificar ningún archivo.</p></div></div>
+    </div>
+    <div class="glossary">
+      <span class="g-tag">📖 Glosario · Sintaxis</span>
+      <p>Son las reglas de escritura que debe cumplir un archivo de configuración para que el programa pueda leerlo sin errores (parecido a la ortografía y la gramática, pero para un archivo de datos).</p>
+    </div>
+    <div class="callout info">
+      <span class="co-ico">ℹ️</span>
+      <div><span class="co-tag">Verificación</span>
+        <p>La documentación oficial no proporciona, en el texto accesible, un procedimiento explícito de verificación para este paso; sí indica que el propio script realiza una validación de sintaxis antes de guardar cualquier cambio, y que aborta sin modificar archivos si esa validación falla.</p>
+      </div>
+    </div>
+    <div class="callout ejemplo">
+      <span class="co-ico">💡</span>
+      <div><span class="co-tag">Ejemplo · Reutilización del script</span>
+        <p>Según la documentación oficial, puedes volver a ejecutar el script en cualquier momento para <strong>cambiar de modelo</strong> desde el menú, o para <strong>restaurar la configuración</strong> a su estado anterior a la instalación (opción 9 del menú).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5B. OPCIÓN 2 · MANUAL ================= -->
+<section id="opcion2" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">✍️</div>
+    <div><div class="sec-kicker">Sección 07 · Capítulo 5</div><h2>Instalación y configuración — Opción 2: Edición manual</h2></div>
+  </div>
+
+  <div class="card">
+    <p>La documentación oficial describe esta opción como una <strong>alternativa a ejecutar el script</strong>.</p>
+  </div>
+
+  <div class="card">
+    <h3>Paso 1 — Crea el archivo del catálogo de modelos ~/.codex/models.json</h3>
+    <p>La fuente oficial indica: <em>“First, create the model catalog file <code class="inline">~/.codex/models.json</code>, which declares the metadata of DeepSeek models to Codex”</em>.</p>
+    <p>Este archivo, según la documentación, es idéntico al que escribe el script automático de la Opción 1, y contiene tres modelos: <code class="inline">deepseek-v4-flash</code>, <code class="inline">deepseek-v4-pro</code> y <code class="inline">deepseek-v4-flash-vision-exp</code>.</p>
+    <div class="callout info">
+      <span class="co-ico">ℹ️</span>
+      <div><span class="co-tag">Info · Detalle técnico explícito de la documentación</span>
+        <p>Sobre este archivo, la documentación oficial precisa explícitamente un detalle técnico: la entrada de <code class="inline">deepseek-v4-flash-vision-exp</code> declara <code class="inline">"image"</code> dentro de un campo llamado <code class="inline">input_modalities</code>, y es precisamente ese dato el que le indica a Codex que ese modelo concreto acepta imágenes como entrada.</p>
+      </div>
+    </div>
+    <div class="callout advertencia">
+      <span class="co-ico">⚠️</span>
+      <div><span class="co-tag">Advertencia · Aviso importante sobre este archivo</span>
+        <p>El <code class="inline">models.json</code> que publica la documentación oficial es un archivo JSON muy extenso, que además incluye, dentro de cada modelo, un bloque de texto muy largo (las instrucciones internas por defecto de Codex). Por su extensión y por tratarse de contenido generado por un tercero (no de DeepSeek), este tutorial no lo reproduce íntegro. En su lugar, aquí tienes los campos documentados que sí son relevantes para el usuario, verificados directamente contra la fuente oficial:</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción según la documentación oficial</th></tr></thead>
+        <tbody>
+          <tr><td><code>slug</code></td><td>Identificador del modelo (por ejemplo, <code>deepseek-v4-flash</code>)</td></tr>
+          <tr><td><code>input_modalities</code></td><td>Tipos de entrada admitidos; solo el modelo <code>deepseek-v4-flash-vision-exp</code> incluye <code>"image"</code> además de <code>"text"</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Para obtener el contenido íntegro y exacto del archivo <code class="inline">models.json</code>, la propia documentación oficial ofrece un desplegable llamado <em>“Click to expand the full content of models.json”</em> en la página oficial (enlace en la pestaña “Referencia oficial”). Se recomienda copiarlo directamente desde ahí para asegurar una transcripción exacta, en lugar de confiar en una copia de terceros.</p>
+    <div class="did-it"><b>¿Qué acabamos de hacer?</b> Hemos creado el archivo que le “presenta” a Codex los modelos de DeepSeek disponibles, con sus características técnicas.</div>
+    <div class="callout ejemplo">
+      <span class="co-ico">📁</span>
+      <div><span class="co-tag">Ejemplo · ¿Dónde se ejecuta?</span>
+        <p>Este archivo se guarda en tu carpeta personal de Codex, en la ruta <code class="inline">~/.codex/models.json</code> (en <code class="inline">~/.codex/</code>, dentro de tu carpeta de usuario).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Paso 2 — Modifica ~/.codex/config.toml</h3>
+    <p>La documentación oficial indica que también hay que crear o modificar el archivo <code class="inline">~/.codex/config.toml</code>, y remite a una “referencia de campos” (<em>field reference</em>) para saber exactamente qué escribir en él.</p>
+    <div class="callout advertencia">
+      <span class="co-ico">⚠️</span>
+      <div><span class="co-tag">Advertencia · Aviso de fuente (importante)</span>
+        <p>No fue posible recuperar directamente, desde <code class="inline">api-docs.deepseek.com</code>, el contenido exacto de esa sección de referencia de campos ni el texto literal de <code class="inline">config.toml</code> que la documentación oficial muestra en este punto, debido a una limitación técnica al leer la página web (ver la nota de transparencia al inicio del documento y la pestaña “Limitaciones”).</p>
+        <p>Lo que sigue a continuación <strong>no proviene de la fuente única oficial</strong>, sino que ha sido reconstruido a partir de varios sitios de terceros independientes, que entre sí citan el mismo contenido de forma exacta y que afirman haberlo copiado de la guía oficial de DeepSeek. <strong>No se ha podido verificar de primera mano contra <code class="inline">api-docs.deepseek.com</code>.</strong></p>
+      </div>
+    </div>
+    <p><strong>Bloque de <code class="inline">config.toml</code> reportado de forma coincidente por varias fuentes de terceros</strong> (no verificado directamente contra la fuente oficial única):</p>
+    <div class="code-block toml">
+      <div class="code-head"><span class="code-lang">config.toml · fuente de terceros</span><button class="copy-btn" type="button">Copiar</button></div>
+      <pre><code>model = "deepseek-v4-flash"
+model_provider = "deepseek"
+preferred_auth_method = "apikey"
+forced_login_method = "api"
+model_reasoning_effort = "high"
+model_catalog_json = "~/.codex/models.json"
+
+[model_providers.deepseek]
+name = "deepseek"
+base_url = "https://api.deepseek.com/"
+wire_api = "responses"
+experimental_bearer_token = "&lt;tu clave de API de DeepSeek&gt;"</code></pre>
+    </div>
+    <p>Según estas fuentes de terceros (no la fuente oficial única), el significado de cada campo sería el siguiente. Se marca cada uno como <strong>no verificado de primera mano</strong>:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Campo</th><th>Función que le atribuyen las fuentes de terceros (no verificado contra la fuente oficial única)</th></tr></thead>
+        <tbody>
+          <tr><td><code>model</code></td><td>Modelo de DeepSeek que Codex usará por defecto (por ejemplo, <code>deepseek-v4-flash</code>)</td></tr>
+          <tr><td><code>model_provider</code></td><td>Indica a Codex que use el proveedor definido más abajo como <code>[model_providers.deepseek]</code></td></tr>
+          <tr><td><code>preferred_auth_method</code> / <code>forced_login_method</code></td><td>Relacionados con el método de autenticación (por clave de API, en lugar de inicio de sesión de cuenta)</td></tr>
+          <tr><td><code>model_reasoning_effort</code></td><td>Nivel de esfuerzo de razonamiento por defecto (coincide con los niveles <code>low</code> / <code>high</code> / <code>max</code> que sí aparecen documentados oficialmente en <code>models.json</code>, según se explicó en el Paso 1)</td></tr>
+          <tr><td><code>model_catalog_json</code></td><td>Ruta al archivo <code>models.json</code> creado en el Paso 1</td></tr>
+          <tr><td><code>base_url</code></td><td>Dirección del servidor de la API de DeepSeek</td></tr>
+          <tr><td><code>wire_api</code></td><td>Protocolo de comunicación; el valor <code>"responses"</code> es coherente con lo que la fuente oficial sí confirma explícitamente (que DeepSeek es compatible de forma nativa con la Responses API)</td></tr>
+          <tr><td><code>experimental_bearer_token</code></td><td>Campo donde se coloca la clave de API de DeepSeek</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout advertencia">
+      <span class="co-ico">⚠️</span>
+      <div><span class="co-tag">Advertencia</span>
+        <p>“La documentación oficial proporcionada no especifica este punto” en cuanto a confirmar, con el texto literal de <code class="inline">api-docs.deepseek.com</code>, que estos sean exactamente los nombres de campo correctos y completos. Antes de usar este bloque, se recomienda contrastarlo tú mismo contra el apartado <em>“Option 2: Edit the Configuration File Manually”</em> y el <em>“config.toml field reference”</em> de la página oficial enlazada en la pestaña “Referencia oficial”.</p>
+      </div>
+    </div>
+    <div class="callout ejemplo">
+      <span class="co-ico">✔️</span>
+      <div><span class="co-tag">Ejemplo · Lo que sí se puede afirmar con certeza</span>
+        <p>Lo que sí se puede afirmar con certeza, porque aparece explícitamente en el texto recuperado de la fuente oficial única, es que la configuración final de <code class="inline">config.toml</code> debe incluir una sección llamada <code class="inline">[model_providers.deepseek]</code> (esto se menciona al describir lo que hace el script automático en la Opción 1, y aplica igualmente a la configuración manual) — dato que coincide con el bloque de terceros mostrado arriba.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6. CONFIG DETALLADA ================= -->
+<section id="config" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🔧</div>
+    <div><div class="sec-kicker">Sección 08 · Capítulo 6</div><h2>Configuración detallada</h2></div>
+  </div>
+
+  <div class="card">
+    <p>“La documentación oficial utilizada para este tutorial <strong>no especifica una versión concreta</strong>” de Codex CLI ni de los modelos, más allá de los nombres de modelo ya mencionados (<code class="inline">deepseek-v4-flash</code>, <code class="inline">deepseek-v4-pro</code>, <code class="inline">deepseek-v4-flash-vision-exp</code>).</p>
+    <p>Sobre los parámetros exactos de la sección <code class="inline">[model_providers.deepseek]</code> (URL base, nombre del campo donde se guarda la clave, etc.): como se explicó en la pestaña “Opción 2 · Manual”, el bloque mostrado en el Paso 2 de la Opción 2 <strong>no procede de la fuente única oficial</strong>, sino que ha sido reconstruido a partir de fuentes de terceros coincidentes entre sí (Modo 3, autorizado explícitamente por el usuario).</p>
+    <h4>Los dos datos de esa sección que sí están respaldados directamente por el texto oficial recuperado son:</h4>
+    <ul>
+      <li>Debe existir una sección <code class="inline">[model_providers.deepseek]</code> en <code class="inline">config.toml</code>.</li>
+      <li>DeepSeek es compatible de forma nativa con la Responses API, lo cual es coherente con el valor <code class="inline">wire_api = "responses"</code> que reportan las fuentes de terceros, aunque el nombre exacto de ese campo no se ha verificado contra la fuente única oficial.</li>
+    </ul>
+    <div class="callout advertencia">
+      <span class="co-ico">⚠️</span>
+      <div><span class="co-tag">Advertencia</span>
+        <p>No se debe dar por sentado que el resto de nombres de campo del bloque de terceros son exactos o completos sin contrastarlos tú mismo contra la página oficial.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7+8. PRIMER USO Y VERIFICACIÓN ================= -->
+<section id="verificacion" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🔍</div>
+    <div><div class="sec-kicker">Sección 09 · Capítulos 7 y 8</div><h2>Primer uso y verificación de la instalación</h2></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>7 · Primer uso</h3>
+      <p>La documentación oficial <strong>no detalla</strong>, en el texto accesible de esta página, un procedimiento paso a paso para “el primer uso” de Codex una vez configurado (por ejemplo, cómo abrir una conversación o escribir el primer prompt).</p>
+      <p>Lo único que la fuente oficial confirma es la mecánica de selección de modelo ya descrita: el modelo activo se elige durante la ejecución del script (Opción 1, Paso 3) o se configura mediante los archivos <code class="inline">models.json</code> y <code class="inline">config.toml</code> (Opción 2).</p>
+    </div>
+    <div class="card">
+      <h3>8 · Verificación de la instalación</h3>
+      <p>La documentación oficial <strong>no proporciona un procedimiento de verificación detallado</strong> en el texto al que se pudo acceder de esta página. Como se explicó en la nota de transparencia, la sección de verificación de la página oficial no pudo recuperarse por una limitación técnica de la herramienta de lectura web, y este tutorial no va a inventar pasos de comprobación que no estén respaldados por la fuente.</p>
+      <div class="callout ejemplo">
+        <span class="co-ico">✔️</span>
+        <div><span class="co-tag">Ejemplo · Lo único verificable directamente</span>
+          <p>Lo único verificable directamente contra el texto oficial recuperado es el mecanismo interno de validación que ejecuta el propio script de la Opción 1: comprueba la sintaxis de <code class="inline">config.toml</code> y <code class="inline">models.json</code> antes de guardar los cambios, y si esa validación falla, no modifica ningún archivo.</p>
+        </div>
+      </div>
+      <p>Se recomienda consultar el apartado de verificación en la página oficial enlazada en la pestaña “Referencia oficial”.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 9+10. PROBLEMAS Y ERRORES ================= -->
+<section id="problemas" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🧯</div>
+    <div><div class="sec-kicker">Sección 10 · Capítulos 9 y 10</div><h2>Solución de problemas y errores frecuentes</h2></div>
+  </div>
+
+  <div class="card">
+    <h3>9 · Solución de problemas</h3>
+    <p>La documentación oficial proporcionada <strong>no especifica este punto</strong> en el texto al que se pudo acceder: la sección de solución de problemas de la página oficial no pudo recuperarse por la misma limitación técnica ya explicada. Siguiendo la regla de la sección 13 de este encargo (no inventar problemas ni soluciones), este tutorial <strong>no incluye una tabla de errores documentados</strong>.</p>
+    <p>El único comportamiento relacionado con errores que sí aparece explícitamente en el texto oficial recuperado es el siguiente:</p>
+    <div class="trouble-grid">
+      <div class="trouble-cell"><span class="tc-tag tc-p">🔴 Problema</span><p>El script de configuración automática no logra validar la sintaxis de <code class="inline">config.toml</code> o <code class="inline">models.json</code>.</p></div>
+      <div class="trouble-cell"><span class="tc-tag tc-c">🟠 Causa</span><p>No especificada explícitamente en el texto oficial recuperado, más allá de “si la validación falla”.</p></div>
+      <div class="trouble-cell"><span class="tc-tag tc-s">🟢 Solución</span><p>Según la documentación oficial: si la validación falla, el script aborta sin modificar ningún archivo. Esto significa que tu configuración original queda intacta y puedes volver a intentarlo.</p></div>
+      <div class="trouble-cell"><span class="tc-tag tc-v">🔵 Comprobación</span><p>No especificada en el texto oficial recuperado.</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>10 · Errores frecuentes</h3>
+    <p>La documentación oficial proporcionada <strong>no especifica este punto</strong> para la parte de la página a la que se pudo acceder. No se incluye una lista de errores frecuentes para no inventar información no respaldada por la fuente.</p>
+  </div>
+</section>
+
+<!-- ================= 11. DESPUÉS ================= -->
+<section id="despues" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🚀</div>
+    <div><div class="sec-kicker">Sección 11 · Capítulo 11</div><h2>Qué hacer después de la configuración</h2></div>
+  </div>
+
+  <div class="card">
+    <p>Según la fuente oficial, después de configurar DeepSeek como proveedor puedes:</p>
+    <div class="step">
+      <div class="step-num">↻</div>
+      <div class="step-body"><h4>Cambiar de modelo en cualquier momento</h4><p>Volviendo a ejecutar el script de la Opción 1 y eligiendo otra opción del menú (<code class="inline">deepseek-v4-flash</code>, <code class="inline">deepseek-v4-pro</code> o <code class="inline">deepseek-v4-flash-vision-exp</code>).</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body"><h4>Restaurar la configuración original de Codex</h4><p>Eliminando los ajustes de DeepSeek, ejecutando de nuevo el script y eligiendo la <strong>opción 9</strong> del menú.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 12. LIMITACIONES ================= -->
+<section id="limitaciones" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🧾</div>
+    <div><div class="sec-kicker">Sección 12 · Capítulo 12</div><h2>Limitaciones de la documentación oficial</h2></div>
+  </div>
+
+  <div class="card">
+    <p>Para ser completamente transparentes, estas son las limitaciones detectadas al elaborar este tutorial, incluyendo un cambio en el alcance de las fuentes autorizadas que el propio usuario aprobó expresamente durante la conversación:</p>
+    <h4>Alcance de fuentes en tres modos, autorizados progresivamente por el usuario:</h4>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">Modo 1 · Alcance original del encargo <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>Únicamente <code class="inline">https://api-docs.deepseek.com/quick_start/agent_integrations/codex/</code>.</p></div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">Modo 2 · Ampliado al dominio completo <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>Ampliado por el usuario a todo el dominio <code class="inline">api-docs.deepseek.com</code>.</p></div></div>
+    </div>
+    <div class="acc-item">
+      <button class="acc-btn" type="button">Modo 3 · Fuentes de terceros solo para el bloque config.toml <span class="acc-arrow">▼</span></button>
+      <div class="acc-body"><div class="acc-inner"><p>Ampliado de nuevo por el usuario para permitir, únicamente en el bloque de <code class="inline">config.toml</code> de la sección 5 (Opción 2, Paso 2) y su reflejo en la sección 6, contenido reconstruido a partir de fuentes de terceros no oficiales que citan ese bloque de forma coincidente entre sí. Ese contenido está marcado explícitamente en el propio texto como no verificado contra la fuente oficial única.</p></div></div>
+    </div>
+
+    <div class="callout advertencia">
+      <span class="co-ico">⚠️</span>
+      <div><span class="co-tag">Advertencia · Limitación técnica de lectura</span>
+        <p>La página oficial incluye, dentro de la sección <em>“Option 2: Edit the Configuration File Manually”</em>, un bloque de datos extenso (el contenido completo de <code class="inline">models.json</code>) que impidió, por una limitación técnica de la herramienta de lectura web utilizada, recuperar el texto de las secciones posteriores de esa misma página, incluso tras varios intentos y tras ampliar la búsqueda a todo el dominio oficial (Modo 2).</p>
+      </div>
+    </div>
+
+    <h4>Como consecuencia, sigue sin poder confirmarse contra la fuente oficial única, ni siquiera en Modo 2, el contenido exacto de:</h4>
+    <ul>
+      <li>La <em>“config.toml field reference”</em> (referencia de campos de <code class="inline">config.toml</code>) tal como aparece literalmente en la página oficial.</li>
+      <li>La sección de verificación de la instalación.</li>
+      <li>La sección de solución de problemas.</li>
+    </ul>
+    <ul>
+      <li>El bloque de <code class="inline">config.toml</code> y su tabla de campos que aparecen en las secciones 5 y 6 proceden de fuentes de terceros (Modo 3), no de la fuente oficial única, y se presentan con esa salvedad explícita.</li>
+      <li>La documentación oficial no especifica, en el texto que sí se pudo verificar directamente, requisitos de versión concretos de Codex CLI.</li>
+      <li>No se han incluido capturas de pantalla porque la fuente oficial proporcionada no las ofrece de forma utilizable en el texto accesible.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 13. RESUMEN + QUIZ ================= -->
+<section id="resumen" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">📌</div>
+    <div><div class="sec-kicker">Sección 13 · Capítulo 13</div><h2>Resumen final y autoevaluación</h2></div>
+  </div>
+
+  <div class="card">
+    <h3>13 · Resumen final</h3>
+    <p>Según lo que se pudo verificar directamente contra la documentación oficial de DeepSeek:</p>
+    <ul>
+      <li>Codex se comunica con los modelos a través de la <strong>Responses API</strong>, que DeepSeek admite de forma nativa.</li>
+      <li>Existen <strong>dos caminos oficiales</strong> para integrar DeepSeek con Codex: un script automático (recomendado por la propia documentación) o la edición manual de dos archivos (<code class="inline">models.json</code> y <code class="inline">config.toml</code>).</li>
+      <li>El script automático hace <strong>copia de seguridad</strong>, escribe el catálogo de modelos, modifica <code class="inline">config.toml</code> de forma selectiva y <strong>valida la sintaxis</strong> antes de guardar cualquier cambio.</li>
+      <li>Los modelos documentados son <code class="inline">deepseek-v4-flash</code>, <code class="inline">deepseek-v4-pro</code> y <code class="inline">deepseek-v4-flash-vision-exp</code> (este último, con entrada de imágenes).</li>
+      <li>La clave de API se obtiene en <code class="inline">platform.deepseek.com/api_keys</code> y empieza por <code class="inline">sk-</code>.</li>
+      <li>Existen partes de la documentación oficial (verificación, solución de problemas, referencia de campos de <code class="inline">config.toml</code>) que no pudieron confirmarse contra la fuente oficial por una limitación técnica al leer la página, y este tutorial las señala honestamente en lugar de inventarlas.</li>
+      <li>Con autorización expresa del usuario (Modo 3), el bloque de <code class="inline">config.toml</code> de la sección 5 se completó con contenido corroborado por varias fuentes de terceros independientes, marcado explícitamente como no verificado de primera mano contra la fuente oficial única.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>🎓 Autoevaluación interactiva</h3>
+    <p>Preguntas basadas exclusivamente en el contenido de este tutorial. Pulsa <em>“Ver respuesta”</em> para comprobar.</p>
+
+    <div class="qa">
+      <div class="q"><span class="qn">Q1</span><span>¿Qué modelos de DeepSeek quedan disponibles para Codex según la fuente oficial?</span></div>
+      <button class="reveal-btn" type="button">Ver respuesta</button>
+      <div class="a"><code class="inline">deepseek-v4-flash</code>, <code class="inline">deepseek-v4-pro</code> y <code class="inline">deepseek-v4-flash-vision-exp</code>.</div>
+    </div>
+    <div class="qa">
+      <div class="q"><span class="qn">Q2</span><span>¿Por qué prefijo empieza siempre la clave de API de DeepSeek y dónde se obtiene?</span></div>
+      <button class="reveal-btn" type="button">Ver respuesta</button>
+      <div class="a">Empieza siempre por <code class="inline">sk-</code> y se obtiene desde la Plataforma de DeepSeek, en <code class="inline">platform.deepseek.com/api_keys</code>.</div>
+    </div>
+    <div class="qa">
+      <div class="q"><span class="qn">Q3</span><span>En el menú del script automático, ¿qué hace la opción 9?</span></div>
+      <button class="reveal-btn" type="button">Ver respuesta</button>
+      <div class="a">Restaura la configuración por defecto de Codex, eliminando los ajustes de DeepSeek.</div>
+    </div>
+    <div class="qa">
+      <div class="q"><span class="qn">Q4</span><span>¿Qué dato de <code class="inline">models.json</code> indica a Codex que un modelo acepta imágenes como entrada?</span></div>
+      <button class="reveal-btn" type="button">Ver respuesta</button>
+      <div class="a">La entrada de <code class="inline">deepseek-v4-flash-vision-exp</code> declara <code class="inline">"image"</code> dentro del campo <code class="inline">input_modalities</code>.</div>
+    </div>
+    <div class="qa">
+      <div class="q"><span class="qn">Q5</span><span>¿Qué ocurre si el script no logra validar la sintaxis de <code class="inline">config.toml</code> o <code class="inline">models.json</code>?</span></div>
+      <button class="reveal-btn" type="button">Ver respuesta</button>
+      <div class="a">El proceso se detiene (aborta) sin modificar ningún archivo: tu configuración original queda intacta y puedes volver a intentarlo.</div>
+    </div>
+    <div class="qa">
+      <div class="q"><span class="qn">Q6</span><span>¿Qué sección debe incluir la configuración final de <code class="inline">config.toml</code>, según el texto oficial recuperado?</span></div>
+      <button class="reveal-btn" type="button">Ver respuesta</button>
+      <div class="a">Una sección llamada <code class="inline">[model_providers.deepseek]</code>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 14. REFERENCIA ================= -->
+<section id="referencia" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">🔗</div>
+    <div><div class="sec-kicker">Sección 14 · Capítulo 14</div><h2>Referencia oficial</h2></div>
+  </div>
+
+  <div class="card">
+    <p>Fuente documental única de este tutorial (conservada tal como aparece en el documento original):</p>
+    <div class="link-card">
+      <div class="lc-ico">📄</div>
+      <div class="lc-body">
+        <strong>Documentación oficial de DeepSeek · Integración con Codex</strong>
+        <a href="https://api-docs.deepseek.com/quick_start/agent_integrations/codex/" target="_blank" rel="noopener">https://api-docs.deepseek.com/quick_start/agent_integrations/codex/</a>
+      </div>
+    </div>
+    <div class="callout info">
+      <span class="co-ico">ℹ️</span>
+      <div><span class="co-tag">Info</span>
+        <p>Recuerda que en esa página oficial encontrarás el desplegable <em>“Click to expand the full content of models.json”</em>, recomendado para copiar el contenido íntegro y exacto del archivo <code class="inline">models.json</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CRÉDITOS ================= -->
+<section id="creditos" class="section">
+  <div class="sec-head">
+    <div class="sec-icon">★</div>
+    <div><div class="sec-kicker">Sección final</div><h2>Créditos</h2></div>
+  </div>
+
+  <div class="card credits-center">
+    <div class="cover-wrap">
+      <svg class="cover-anim" viewBox="0 0 1600 900" role="img" aria-label="Diagrama animado de la integración de DeepSeek V4 con Codex mediante la Responses API.">
+        <use href="#cv-cover" xlink:href="#cv-cover"></use>
+      </svg>
+    </div>
+    <h3 style="font-size:clamp(1.2rem,3vw,1.6rem);margin-top:8px">Integración de DeepSeek V4 con Codex</h3>
+    <div class="credits-role">Autor del tutorial</div>
+    <div class="credits-author">Rubén Sbarsky</div>
+    <div class="credits-dt">
+      <span class="dt-chip">📅 Fecha: <b>01/09/2026</b></span>
+      <span class="dt-chip">🕘 Hora: <b>09:57:33</b></span>
+    </div>
+    <p class="edu-note">📚 Tutorial creado únicamente con fines <strong>educativos y de divulgación</strong>. Contenido basado exclusivamente en la documentación oficial de DeepSeek, con las salvedades de fuentes indicadas en el propio documento.</p>
+    <div class="fiat">Fiat iustitia, ruat caelum.</div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="f-line">📚 Tutorial solo con fines Educativos y Divulgación</div>
+  <div class="f-line">👨‍💻 Créditos: <b>Rubén Sbarsky</b></div>
+  <div class="f-line">📅 FECHA: <b>01/09/2026</b></div>
+  <div class="f-line">Hora: <b>09:57:33</b></div>
+  <div class="f-fiat">Fiat iustitia, ruat caelum.</div>
+</footer>
+
+<button id="toTop" type="button" aria-label="Volver arriba">↑</button>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============ SPA NAVIGATION ============ */
+  var sections = document.querySelectorAll('.section');
+  var navBtns  = document.querySelectorAll('.nav-btn');
+  var navScroll = document.getElementById('navScroll');
+
+  function restartCoverSvg(sectionEl){
+    var svgs = sectionEl.querySelectorAll('svg.cover-anim');
+    svgs.forEach(function(s){
+      try{
+        if(reduceMotion){ s.pauseAnimations(); }
+        else { s.unpauseAnimations(); s.setCurrentTime(0); }
+      }catch(e){}
+    });
+  }
+
+  function showSection(id){
+    sections.forEach(function(sec){
+      if(sec.id === id){ sec.classList.add('active'); }
+      else { sec.classList.remove('active'); }
+    });
+    navBtns.forEach(function(btn){
+      var active = btn.getAttribute('data-target') === id;
+      btn.classList.toggle('active', active);
+      if(active){
+        try{ btn.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', inline:'center', block:'nearest'}); }catch(e){}
+      }
+    });
+    var target = document.getElementById(id);
+    if(target){ restartCoverSvg(target); }
+    window.scrollTo({top:0, behavior:'auto'});
+    updateProgress();
+  }
+
+  navBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      showSection(btn.getAttribute('data-target'));
+    });
+  });
+
+  /* ============ PROGRESS BAR ============ */
+  var progressBar = document.getElementById('progressBar');
+  function updateProgress(){
+    var doc = document.documentElement;
+    var max = doc.scrollHeight - window.innerHeight;
+    var pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+    progressBar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+  }
+
+  /* ============ BACK TO TOP ============ */
+  var toTop = document.getElementById('toTop');
+  function updateToTop(){
+    toTop.classList.toggle('visible', window.scrollY > 380);
+  }
+  toTop.addEventListener('click', function(){
+    window.scrollTo({top:0, behavior: reduceMotion ? 'auto' : 'smooth'});
+  });
+
+  window.addEventListener('scroll', function(){
+    updateProgress();
+    updateToTop();
+  }, {passive:true});
+  window.addEventListener('resize', updateProgress);
+
+  /* ============ ACCORDIONS ============ */
+  document.querySelectorAll('.acc-item').forEach(function(item){
+    var btn  = item.querySelector('.acc-btn');
+    var body = item.querySelector('.acc-body');
+    btn.addEventListener('click', function(){
+      var isOpen = item.classList.contains('open');
+      if(isOpen){
+        body.style.maxHeight = '0px';
+        item.classList.remove('open');
+      } else {
+        item.classList.add('open');
+        body.style.maxHeight = body.scrollHeight + 'px';
+      }
+    });
+  });
+
+  /* ============ QUIZ REVEAL ============ */
+  document.querySelectorAll('.qa').forEach(function(qa){
+    var btn = qa.querySelector('.reveal-btn');
+    btn.addEventListener('click', function(){
+      var shown = qa.classList.toggle('revealed');
+      btn.textContent = shown ? 'Ocultar respuesta' : 'Ver respuesta';
+    });
+  });
+
+  /* ============ COPY BUTTONS ============ */
+  document.querySelectorAll('.code-block').forEach(function(block){
+    var btn = block.querySelector('.copy-btn');
+    var code = block.querySelector('code');
+    if(!btn || !code) return;
+    btn.addEventListener('click', function(){
+      var txt = code.innerText;
+      function done(){
+        btn.textContent = '✓ Copiado';
+        btn.classList.add('copied');
+        setTimeout(function(){
+          btn.textContent = 'Copiar';
+          btn.classList.remove('copied');
+        }, 1800);
+      }
+      function fallback(){
+        var ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try{ document.execCommand('copy'); done(); }catch(e){}
+        document.body.removeChild(ta);
+      }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+
+  /* ============ REDUCED MOTION ============ */
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduceMotion){
+    document.querySelectorAll('svg.cover-anim').forEach(function(s){
+      try{ s.pauseAnimations(); }catch(e){}
+    });
+  }
+
+  /* init */
+  updateProgress();
+  updateToTop();
+  restartCoverSvg(document.getElementById('inicio'));
+})();
+</script>
+</body>
+</html>
